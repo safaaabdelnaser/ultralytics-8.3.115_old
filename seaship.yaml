@@ -1,0 +1,23 @@
+path: /home/mg/DeepPCR/abdelrahman/Safaa/datasets/seashipDataset-2
+
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 6
+names:
+  [
+    "bulk cargo carrier",
+    "container ship",
+    "fishing boat",
+    "general cargo ship",
+    "ore carrier",
+    "passenger ship",
+  ]
+
+roboflow:
+  workspace: customdataset-lfjkf
+  project: seashipdataset
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/customdataset-lfjkf/seashipdataset/dataset/2

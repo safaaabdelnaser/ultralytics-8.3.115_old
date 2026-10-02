@@ -1,0 +1,23 @@
+path: /home/mg/DeepPCR/abdelrahman/Safaa/datasets/open-4
+
+train: train/images
+val: valid/images
+test: test/images
+
+names:
+- Bulk Carrier
+- Cargo
+- Container Ship
+- Fishing
+- General Cargo
+- Oil Products Tanker
+- Oil-Chemical Tanker
+- Other
+- Tanker
+nc: 9
+roboflow:
+  license: CC BY 4.0
+  project: open-fs8xe
+  url: https://universe.roboflow.com/object-detection-efq50/open-fs8xe/dataset/4
+  version: 4
+  workspace: object-detection-efq50

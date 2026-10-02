@@ -20,6 +20,43 @@ from .utils import bias_init_with_prob, linear_init
 __all__ = "Detect", "Segment", "Pose", "Classify", "OBB", "RTDETRDecoder", "v10Detect", "YOLOEDetect", "YOLOESegment"
 
 
+
+
+# -------------------------------
+# Safaa SE Attention Block
+# -------------------------------
+class SafaaSEBlock(nn.Module):
+    def __init__(self, channels, r=16):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Conv2d(channels, channels // r, 1),
+            nn.SiLU(),
+            nn.Conv2d(channels // r, channels, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        w = self.fc(self.pool(x))
+        return x * w
+
+
+# -------------------------------
+# Safaa Feature Refinement Block
+# -------------------------------
+class SafaaRefineBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.refine = nn.Sequential(
+            Conv(channels, channels, 3),
+            Conv(channels, channels, 3),
+            SafaaSEBlock(channels)
+        )
+
+    def forward(self, x):
+        return self.refine(x)
+
+
 class Detect(nn.Module):
     """YOLO Detect head for detection models."""
 
@@ -57,6 +94,13 @@ class Detect(nn.Module):
                 for x in ch
             )
         )
+
+        # Safaa Feature Refinement Layers
+        # -------------------------------
+        self.safaa_refine = nn.ModuleList(
+            SafaaRefineBlock(c) for c in ch
+        )
+
         self.dfl = DFL(self.reg_max) if self.reg_max > 1 else nn.Identity()
 
         if self.end2end:
@@ -69,7 +113,17 @@ class Detect(nn.Module):
             return self.forward_end2end(x)
 
         for i in range(self.nl):
-            x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
+
+
+             # Safaa Refinement قبل التوقع
+            x[i] = self.safaa_refine[i](x[i])
+
+            # Prediction Heads
+            box_branch = self.cv2[i](x[i])
+            cls_branch = self.cv3[i](x[i])
+
+            # Concatenate Output
+            x[i] = torch.cat((box_branch, cls_branch), 1)
         if self.training:  # Training path
             return x
         y = self._inference(x)
@@ -92,6 +146,7 @@ class Detect(nn.Module):
             torch.cat((self.one2one_cv2[i](x_detach[i]), self.one2one_cv3[i](x_detach[i])), 1) for i in range(self.nl)
         ]
         for i in range(self.nl):
+                # Safaa Feature Refinement
             x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
         if self.training:  # Training path
             return {"one2many": x, "one2one": one2one}
